@@ -3,21 +3,68 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Foretell - Real-time Kalshi prediction market scanner">
   <title>Foretell - Kalshi Market Scanner</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
   <div id="root"></div>
-  <script type="module">
-    import React from 'https://esm.sh/react@18.2.0';
-    import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
-    import App from './foretell.jsx';
-    
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(App));
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Simple test to verify API is working
+    function App() {
+      const [opportunities, setOpportunities] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      useEffect(() => {
+        fetch('/api/kalshi-markets')
+          .then(res => res.json())
+          .then(data => {
+            console.log('API Response:', data);
+            if (data.success && data.opportunities) {
+              setOpportunities(data.opportunities);
+            } else {
+              setError('No opportunities found');
+            }
+            setLoading(false);
+          })
+          .catch(err => {
+            console.error('API Error:', err);
+            setError(err.message);
+            setLoading(false);
+          });
+      }, []);
+
+      if (loading) return <div style={{padding: '20px'}}>Loading...</div>;
+      if (error) return <div style={{padding: '20px', color: 'red'}}>Error: {error}</div>;
+
+      return (
+        <div style={{padding: '20px', fontFamily: 'Poppins, sans-serif'}}>
+          <h1>Foretell - API Test</h1>
+          <p>Found {opportunities.length} opportunities</p>
+          {opportunities.slice(0, 5).map(opp => (
+            <div key={opp.id} style={{
+              border: '1px solid #ccc',
+              padding: '10px',
+              margin: '10px 0',
+              borderRadius: '5px'
+            }}>
+              <h3>{opp.title}</h3>
+              <p>Category: {opp.category}</p>
+              <p>Probability: {(opp.probability * 100).toFixed(0)}%</p>
+              <p>Risk Score: {opp.riskScore}</p>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
 </body>
 </html>
