@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/kalshi-markets",
+      "destination": "/api/kalshi-markets.js"
+    }
+  ],
+  "functions": {
+    "api/kalshi-markets.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  }
+}
