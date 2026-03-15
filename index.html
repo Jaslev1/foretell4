@@ -8,6 +8,11 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%); min-height: 100vh; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
 </head>
 <body>
   <div id="root"></div>
@@ -15,51 +20,314 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // Simple test to verify API is working
+    const CATEGORIES = ['All', 'Economics', 'Stocks', 'Crypto', 'Tech', 'Sports', 'Politics', 'Weather', 'Entertainment', 'Other'];
+
     function App() {
       const [opportunities, setOpportunities] = useState([]);
       const [loading, setLoading] = useState(true);
-      const [error, setError] = useState(null);
+      const [isLiveData, setIsLiveData] = useState(false);
+      const [selectedCategory, setSelectedCategory] = useState('All');
+      const [lastUpdate, setLastUpdate] = useState(new Date());
+
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          const response = await fetch('/api/kalshi-markets');
+          const data = await response.json();
+          
+          if (data.success && data.opportunities && data.opportunities.length > 0) {
+            setOpportunities(data.opportunities);
+            setIsLiveData(true);
+          } else {
+            setOpportunities([]);
+            setIsLiveData(false);
+          }
+          setLastUpdate(new Date());
+        } catch (err) {
+          console.error('Error:', err);
+          setOpportunities([]);
+          setIsLiveData(false);
+        }
+        setLoading(false);
+      };
 
       useEffect(() => {
-        fetch('/api/kalshi-markets')
-          .then(res => res.json())
-          .then(data => {
-            console.log('API Response:', data);
-            if (data.success && data.opportunities) {
-              setOpportunities(data.opportunities);
-            } else {
-              setError('No opportunities found');
-            }
-            setLoading(false);
-          })
-          .catch(err => {
-            console.error('API Error:', err);
-            setError(err.message);
-            setLoading(false);
-          });
+        fetchData();
+        const interval = setInterval(fetchData, 5 * 60 * 1000);
+        return () => clearInterval(interval);
       }, []);
 
-      if (loading) return <div style={{padding: '20px'}}>Loading...</div>;
-      if (error) return <div style={{padding: '20px', color: 'red'}}>Error: {error}</div>;
+      const filteredOpportunities = opportunities.filter(opp => 
+        selectedCategory === 'All' || opp.category === selectedCategory
+      );
+
+      const stats = {
+        total: filteredOpportunities.length,
+        highConfidence: filteredOpportunities.filter(o => o.probability > 0.70).length,
+        lowRisk: filteredOpportunities.filter(o => o.riskScore <= 3).length
+      };
 
       return (
-        <div style={{padding: '20px', fontFamily: 'Poppins, sans-serif'}}>
-          <h1>Foretell - API Test</h1>
-          <p>Found {opportunities.length} opportunities</p>
-          {opportunities.slice(0, 5).map(opp => (
-            <div key={opp.id} style={{
-              border: '1px solid #ccc',
-              padding: '10px',
-              margin: '10px 0',
-              borderRadius: '5px'
-            }}>
-              <h3>{opp.title}</h3>
-              <p>Category: {opp.category}</p>
-              <p>Probability: {(opp.probability * 100).toFixed(0)}%</p>
-              <p>Risk Score: {opp.riskScore}</p>
+        <div style={{ minHeight: '100vh', color: '#fff' }}>
+          {/* Header */}
+          <header style={{
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(20px)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 100,
+            padding: '1.5rem 2rem'
+          }}>
+            <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <h1 style={{
+                    margin: 0,
+                    fontSize: '2rem',
+                    fontWeight: 700,
+                    background: 'linear-gradient(135deg, #00ff88 0%, #00ccff 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                  }}>Foretell</h1>
+                </div>
+                
+                <button onClick={fetchData} disabled={loading} style={{
+                  padding: '0.75rem 1.5rem',
+                  background: loading ? 'rgba(255, 255, 255, 0.1)' : 'linear-gradient(135deg, #00ff88 0%, #00ccff 100%)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: loading ? '#999' : '#000',
+                  fontWeight: 600,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontSize: '0.9rem'
+                }}>
+                  {loading ? 'Refreshing...' : 'Refresh'}
+                </button>
+              </div>
+
+              {/* Status Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: isLiveData ? '#00ff88' : '#ffc800',
+                  animation: isLiveData ? 'pulse 2s infinite' : 'none'
+                }}></div>
+                <span style={{ fontSize: '0.85rem', color: '#999' }}>
+                  {isLiveData ? '🟢 LIVE DATA • Kalshi API Connected' : '🟡 DEMO MODE'}
+                </span>
+              </div>
+
+              {/* Stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                {[
+                  { label: 'Total Opportunities', value: stats.total, color: '#00ccff' },
+                  { label: 'High Confidence', value: stats.highConfidence, color: '#00ff88' },
+                  { label: 'Low Risk', value: stats.lowRisk, color: '#ffc800' }
+                ].map((stat, idx) => (
+                  <div key={idx} style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '12px',
+                    padding: '1rem'
+                  }}>
+                    <div style={{ fontSize: '0.8rem', color: '#999', marginBottom: '0.5rem' }}>{stat.label}</div>
+                    <div style={{ fontSize: '1.75rem', fontWeight: 700, color: stat.color }}>{stat.value}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
+          </header>
+
+          {/* Main Content */}
+          <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
+            {/* Category Filters */}
+            <div style={{ marginBottom: '2rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: selectedCategory === cat ? 'rgba(0, 255, 136, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                    border: selectedCategory === cat ? '1px solid #00ff88' : '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: selectedCategory === cat ? '#00ff88' : '#fff',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Opportunities Grid */}
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: '#999' }}>
+                <div style={{ fontSize: '1.2rem' }}>Loading opportunities...</div>
+              </div>
+            ) : filteredOpportunities.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '4rem 2rem',
+                background: 'rgba(255, 255, 255, 0.02)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.05)'
+              }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem', color: '#ffc800' }}>
+                  No opportunities found
+                </div>
+                <div style={{ color: '#999' }}>
+                  No markets in scoring range right now. Check back soon or hit refresh.
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+                gap: '1.5rem'
+              }}>
+                {filteredOpportunities.map((opp, idx) => (
+                  <div
+                    key={opp.id}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '12px',
+                      padding: '1.5rem',
+                      animation: `fadeIn 0.5s ease ${idx * 0.05}s both`,
+                      transition: 'all 0.3s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                      e.currentTarget.style.borderColor = '#00ff88';
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    {/* Category & Risk Badge */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          padding: '0.35rem 0.75rem',
+                          background: 'rgba(0, 255, 136, 0.15)',
+                          color: '#00ff88',
+                          borderRadius: '4px',
+                          textTransform: 'uppercase'
+                        }}>
+                          {opp.category}
+                        </span>
+                        
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          padding: '0.35rem 0.75rem',
+                          background: opp.expiryDays <= 3 ? 'rgba(255, 100, 100, 0.15)' : 
+                                      opp.expiryDays <= 7 ? 'rgba(255, 200, 0, 0.15)' : 'rgba(100, 150, 255, 0.15)',
+                          color: opp.expiryDays <= 3 ? '#ff6464' : 
+                                 opp.expiryDays <= 7 ? '#ffc800' : '#6496ff',
+                          borderRadius: '4px'
+                        }}>
+                          {opp.expiryDays}d
+                        </span>
+                      </div>
+                      
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        padding: '0.35rem 0.75rem',
+                        background: opp.riskScore <= 3 ? 'rgba(0, 255, 136, 0.15)' : 
+                                    opp.riskScore <= 6 ? 'rgba(255, 200, 0, 0.15)' : 'rgba(255, 100, 100, 0.15)',
+                        color: opp.riskScore <= 3 ? '#00ff88' : 
+                               opp.riskScore <= 6 ? '#ffc800' : '#ff6464',
+                        borderRadius: '4px'
+                      }}>
+                        Risk: {opp.riskScore}/10
+                      </span>
+                    </div>
+
+                    {/* Title */}
+                    <h3 style={{
+                      margin: '0 0 1rem 0',
+                      fontSize: '1.05rem',
+                      fontWeight: 600,
+                      lineHeight: 1.4,
+                      color: '#fff',
+                      minHeight: '3rem'
+                    }}>
+                      {opp.title.length > 100 ? opp.title.substring(0, 100) + '...' : opp.title}
+                    </h3>
+
+                    {/* Metrics */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '1rem',
+                      marginBottom: '1rem'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: '#999', marginBottom: '0.25rem' }}>
+                          Probability
+                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#00ccff' }}>
+                          {(opp.probability * 100).toFixed(0)}%
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: '#999', marginBottom: '0.25rem' }}>
+                          Volume
+                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ffc800' }}>
+                          ${(opp.volume / 1000).toFixed(0)}k
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Trade Button */}
+                    <a
+                      href={opp.marketUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        width: '100%',
+                        padding: '0.875rem',
+                        background: 'linear-gradient(135deg, #00ff88 0%, #00ccff 100%)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: '#000',
+                        textDecoration: 'none',
+                        fontWeight: 700,
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      Trade on Kalshi →
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </main>
         </div>
       );
     }
