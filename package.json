@@ -1,7 +1,7 @@
 {
   "name": "foretell",
-  "version": "4.0.0",
-  "description": "Kalshi prediction market scanner - Top 30",
+  "version": "5.0.0",
+  "description": "Kalshi scanner - WORKING",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
