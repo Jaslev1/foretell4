@@ -3,16 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Foretell - Kalshi Market Scanner</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>Foretell - Kalshi Scanner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%); min-height: 100vh; }
+    body { 
+      font-family: 'IBM Plex Mono', monospace;
+      background: #f5f1e8;
+      color: #2d3142;
+    }
+    h1, h2, h3 { font-family: 'Libre Baskerville', serif; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
   </style>
 </head>
 <body>
@@ -21,9 +25,16 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    const CATEGORIES = ['All', 'Economics', 'Stocks', 'Crypto', 'Tech', 'Sports', 'Politics', 'Weather', 'Entertainment', 'Other'];
+    const CATEGORIES = [
+      { id: 'ALL', label: 'ALL' },
+      { id: 'Weather', label: 'WEATHER' },
+      { id: 'Economics', label: 'ECONOMICS' },
+      { id: 'Commodities', label: 'COMMODITIES' },
+      { id: 'Other', label: 'GENERAL' },
+      { id: 'Sports', label: 'SPORTS' },
+      { id: 'Entertainment', label: 'ENTERTAINMENT' }
+    ];
 
-    // Copy icon SVG
     const CopyIcon = () => (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -31,7 +42,6 @@
       </svg>
     );
 
-    // Check icon SVG
     const CheckIcon = () => (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <polyline points="20 6 9 17 4 12"></polyline>
@@ -41,9 +51,10 @@
     function App() {
       const [opportunities, setOpportunities] = useState([]);
       const [loading, setLoading] = useState(true);
-      const [isLiveData, setIsLiveData] = useState(false);
-      const [selectedCategory, setSelectedCategory] = useState('All');
+      const [selectedCategory, setSelectedCategory] = useState('ALL');
+      const [sortBy, setSortBy] = useState('score');
       const [copiedId, setCopiedId] = useState(null);
+      const [lastUpdate, setLastUpdate] = useState(new Date());
 
       const fetchData = async () => {
         setLoading(true);
@@ -51,17 +62,12 @@
           const response = await fetch('/api/kalshi-markets');
           const data = await response.json();
           
-          if (data.success && data.opportunities && data.opportunities.length > 0) {
+          if (data.success && data.opportunities) {
             setOpportunities(data.opportunities);
-            setIsLiveData(true);
-          } else {
-            setOpportunities([]);
-            setIsLiveData(false);
+            setLastUpdate(new Date());
           }
         } catch (err) {
           console.error('Error:', err);
-          setOpportunities([]);
-          setIsLiveData(false);
         }
         setLoading(false);
       };
@@ -73,322 +79,459 @@
       }, []);
 
       const copyToClipboard = (opp) => {
-        const text = `${opp.title}\nProbability: ${(opp.probability * 100).toFixed(0)}%\nPrice: ${(opp.yesPrice * 100).toFixed(0)}¢\nVolume: $${(opp.volume / 1000).toFixed(1)}k\nEV: ${(opp.expectedValue * 100).toFixed(1)}%\nRisk: ${opp.riskScore}/10\n${opp.marketUrl}`;
-        
+        const text = `${opp.title}\n${opp.marketUrl}`;
         navigator.clipboard.writeText(text).then(() => {
           setCopiedId(opp.id);
           setTimeout(() => setCopiedId(null), 2000);
         });
       };
 
-      const filteredOpportunities = opportunities.filter(opp => 
-        selectedCategory === 'All' || opp.category === selectedCategory
-      );
+      const filtered = selectedCategory === 'ALL' 
+        ? opportunities 
+        : opportunities.filter(o => o.category === selectedCategory);
 
-      const stats = {
-        total: filteredOpportunities.length,
-        highConfidence: filteredOpportunities.filter(o => o.probability > 0.70).length,
-        lowRisk: filteredOpportunities.filter(o => o.riskScore <= 3).length
+      const sorted = [...filtered].sort((a, b) => {
+        if (sortBy === 'score') return b.expectedValue - a.expectedValue;
+        if (sortBy === 'probability') return b.probability - a.probability;
+        if (sortBy === 'volume') return b.volume - a.volume;
+        return 0;
+      });
+
+      const topOpps = sorted.slice(0, 20);
+      const avgWinProb = topOpps.length > 0 
+        ? topOpps.reduce((sum, o) => sum + o.probability, 0) / topOpps.length 
+        : 0;
+      const avgReturn = topOpps.length > 0
+        ? topOpps.reduce((sum, o) => sum + ((1 / o.yesPrice) - 1), 0) / topOpps.length
+        : 0;
+
+      const formatTime = (date) => {
+        const hours = date.getHours().toString().padStart(2, '0');
+        const mins = date.getMinutes().toString().padStart(2, '0');
+        return `${hours}:${mins}`;
       };
 
       return (
-        <div style={{ minHeight: '100vh', color: '#fff' }}>
-          {/* Header */}
-          <header style={{
-            background: 'rgba(0, 0, 0, 0.6)',
-            backdropFilter: 'blur(20px)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-            position: 'sticky',
-            top: 0,
-            zIndex: 100,
-            padding: '1.5rem 2rem'
+        <div style={{ minHeight: '100vh', background: '#f5f1e8' }}>
+          {/* Top Nav */}
+          <div style={{
+            background: '#fff',
+            borderBottom: '1px solid #d4cfc0',
+            padding: '12px 40px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                background: '#3d405b',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <span style={{ color: '#81b29a', fontSize: '20px', fontWeight: 700 }}>📈</span>
+              </div>
+              <span style={{ fontWeight: 700, fontSize: '18px', color: '#2d3142' }}>Foretell</span>
+            </div>
+            
+            <div style={{ fontSize: '11px', color: '#666', letterSpacing: '0.5px' }}>
+              <span style={{ fontWeight: 600 }}>KALSHI SCANNER</span>
+              <span style={{ margin: '0 12px', color: '#d4cfc0' }}>•</span>
+              <span>{opportunities.length} scanned</span>
+              <span style={{ margin: '0 12px', color: '#d4cfc0' }}>•</span>
+              <span>{topOpps.length} found</span>
+            </div>
+          </div>
+
+          {/* Hero */}
+          <div style={{
+            background: 'linear-gradient(135deg, #3d405b 0%, #2d3142 100%)',
+            padding: '60px 40px',
+            color: '#fff'
           }}>
             <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                <h1 style={{
-                  margin: 0,
-                  fontSize: '2rem',
-                  fontWeight: 700,
-                  background: 'linear-gradient(135deg, #00ff88 0%, #00ccff 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent'
-                }}>Foretell</h1>
-                
-                <button onClick={fetchData} disabled={loading} style={{
-                  padding: '0.75rem 1.5rem',
-                  background: loading ? 'rgba(255, 255, 255, 0.1)' : 'linear-gradient(135deg, #00ff88 0%, #00ccff 100%)',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: loading ? '#999' : '#000',
-                  fontWeight: 600,
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  fontSize: '0.9rem'
-                }}>
-                  {loading ? 'Refreshing...' : 'Refresh'}
-                </button>
-              </div>
+              <h1 style={{
+                fontSize: '56px',
+                fontWeight: 700,
+                marginBottom: '16px',
+                lineHeight: 1.1
+              }}>
+                Today's top <span style={{ color: '#81b29a' }}>{topOpps.length}</span><br/>
+                Kalshi opportunities.
+              </h1>
+              
+              <p style={{
+                fontSize: '14px',
+                color: '#c5c8d4',
+                maxWidth: '600px',
+                lineHeight: 1.6,
+                fontFamily: 'IBM Plex Mono'
+              }}>
+                High-probability, short-horizon positions ranked by<br/>
+                expected value — calibrated against real trade history.
+              </p>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: isLiveData ? '#00ff88' : '#ffc800',
-                  animation: isLiveData ? 'pulse 2s infinite' : 'none'
-                }}></div>
-                <span style={{ fontSize: '0.85rem', color: '#999' }}>
-                  {isLiveData ? '🟢 LIVE DATA • Kalshi API Connected' : '🟡 DEMO MODE'}
-                </span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              {/* Stats Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '20px',
+                marginTop: '40px',
+                maxWidth: '900px'
+              }}>
                 {[
-                  { label: 'Total Opportunities', value: stats.total, color: '#00ccff' },
-                  { label: 'High Confidence', value: stats.highConfidence, color: '#00ff88' },
-                  { label: 'Low Risk', value: stats.lowRisk, color: '#ffc800' }
-                ].map((stat, idx) => (
-                  <div key={idx} style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '12px',
-                    padding: '1rem'
-                  }}>
-                    <div style={{ fontSize: '0.8rem', color: '#999', marginBottom: '0.5rem' }}>{stat.label}</div>
-                    <div style={{ fontSize: '1.75rem', fontWeight: 700, color: stat.color }}>{stat.value}</div>
+                  { label: 'OPPORTUNITIES', value: topOpps.length },
+                  { label: 'AVG WIN PROB', value: (avgWinProb * 100).toFixed(0) + '%' },
+                  { label: 'AVG RETURN', value: (avgReturn * 100).toFixed(1) + '%' },
+                  { label: 'LAST UPDATED', value: formatTime(lastUpdate) }
+                ].map((stat, i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '4px' }}>
+                      {stat.value}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#8a8d99', letterSpacing: '1px', fontWeight: 600 }}>
+                      {stat.label}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-          </header>
+          </div>
 
-          <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
-            <div style={{ marginBottom: '2rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
+          {/* Filters */}
+          <div style={{
+            background: '#fff',
+            borderBottom: '1px solid #d4cfc0',
+            padding: '0 40px'
+          }}>
+            <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', gap: '0' }}>
+              {CATEGORIES.map(cat => {
+                const count = cat.id === 'ALL' 
+                  ? opportunities.length 
+                  : opportunities.filter(o => o.category === cat.id).length;
+                const isActive = selectedCategory === cat.id;
+                
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    style={{
+                      padding: '16px 24px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: isActive ? '3px solid #81b29a' : '3px solid transparent',
+                      color: isActive ? '#2d3142' : '#888',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      letterSpacing: '0.5px',
+                      cursor: 'pointer',
+                      fontFamily: 'IBM Plex Mono',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {cat.label} <span style={{ 
+                      background: isActive ? '#81b29a20' : '#f0f0f0',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      marginLeft: '6px',
+                      fontSize: '10px'
+                    }}>{count}</span>
+                  </button>
+                );
+              })}
+              
+              <div style={{ flex: 1 }}></div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 0' }}>
+                <div style={{ fontSize: '11px', color: '#888', fontWeight: 600 }}>SORT</div>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
                   style={{
-                    padding: '0.5rem 1rem',
-                    background: selectedCategory === cat ? 'rgba(0, 255, 136, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                    border: selectedCategory === cat ? '1px solid #00ff88' : '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    color: selectedCategory === cat ? '#00ff88' : '#fff',
+                    padding: '6px 12px',
+                    border: '1px solid #d4cfc0',
+                    borderRadius: '4px',
+                    fontSize: '11px',
                     fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '0.85rem'
+                    fontFamily: 'IBM Plex Mono',
+                    background: '#fff',
+                    cursor: 'pointer'
                   }}
                 >
-                  {cat}
+                  <option value="score">Best score</option>
+                  <option value="probability">Highest probability</option>
+                  <option value="volume">Most volume</option>
+                </select>
+                
+                <button
+                  onClick={fetchData}
+                  disabled={loading}
+                  style={{
+                    padding: '6px 16px',
+                    background: '#fff',
+                    border: '1px solid #d4cfc0',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontFamily: 'IBM Plex Mono',
+                    color: '#666',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  🔄 {loading ? 'REFRESHING' : 'REFRESH'}
                 </button>
-              ))}
-            </div>
-
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: '3rem', color: '#999' }}>
-                <div style={{ fontSize: '1.2rem' }}>Loading opportunities...</div>
               </div>
-            ) : filteredOpportunities.length === 0 ? (
-              <div style={{
-                textAlign: 'center',
-                padding: '4rem 2rem',
-                background: 'rgba(255, 255, 255, 0.02)',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.05)'
-              }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem', color: '#ffc800' }}>
-                  No opportunities found
-                </div>
-                <div style={{ color: '#999' }}>
-                  No markets in scoring range right now. Check back soon or hit refresh.
-                </div>
+            </div>
+          </div>
+
+          {/* Cards Grid */}
+          <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px' }}>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '80px', color: '#888' }}>
+                Loading opportunities...
+              </div>
+            ) : topOpps.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '80px', color: '#888' }}>
+                No opportunities found
               </div>
             ) : (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
-                gap: '1.5rem'
+                gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))',
+                gap: '24px'
               }}>
-                {filteredOpportunities.map((opp, idx) => (
-                  <div
-                    key={opp.id}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: '12px',
-                      padding: '1.5rem',
-                      animation: `fadeIn 0.5s ease ${idx * 0.05}s both`,
-                      position: 'relative'
-                    }}
-                  >
-                    {/* Copy Button */}
-                    <button
-                      onClick={() => copyToClipboard(opp)}
+                {topOpps.map((opp, idx) => {
+                  const buyYes = opp.probability > 0.5;
+                  const impliedProb = opp.probability;
+                  const entryPrice = opp.yesPrice;
+                  const returnPct = ((1 / entryPrice) - 1) * 100;
+                  const expValue = opp.expectedValue * 100;
+                  const volume24h = opp.volume;
+
+                  return (
+                    <div
+                      key={opp.id}
                       style={{
-                        position: 'absolute',
-                        top: '1rem',
-                        right: '1rem',
-                        padding: '0.5rem',
-                        background: copiedId === opp.id ? 'rgba(0, 255, 136, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '6px',
-                        color: copiedId === opp.id ? '#00ff88' : '#fff',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem'
+                        background: '#fff',
+                        border: '1px solid #d4cfc0',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        animation: `fadeIn 0.4s ease ${idx * 0.05}s both`,
+                        position: 'relative'
                       }}
-                      title="Copy to clipboard"
                     >
-                      {copiedId === opp.id ? <CheckIcon /> : <CopyIcon />}
-                    </button>
-
-                    {/* Badges */}
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', paddingRight: '3rem' }}>
-                      <span style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        padding: '0.35rem 0.75rem',
-                        background: 'rgba(0, 255, 136, 0.15)',
-                        color: '#00ff88',
-                        borderRadius: '4px',
-                        textTransform: 'uppercase'
-                      }}>
-                        {opp.category}
-                      </span>
-                      
-                      <span style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        padding: '0.35rem 0.75rem',
-                        background: opp.expiryDays <= 3 ? 'rgba(255, 100, 100, 0.15)' : 
-                                    opp.expiryDays <= 7 ? 'rgba(255, 200, 0, 0.15)' : 'rgba(100, 150, 255, 0.15)',
-                        color: opp.expiryDays <= 3 ? '#ff6464' : 
-                               opp.expiryDays <= 7 ? '#ffc800' : '#6496ff',
-                        borderRadius: '4px'
-                      }}>
-                        {opp.expiryDays}d
-                      </span>
-
-                      <span style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        padding: '0.35rem 0.75rem',
-                        background: opp.riskScore <= 3 ? 'rgba(0, 255, 136, 0.15)' : 
-                                    opp.riskScore <= 6 ? 'rgba(255, 200, 0, 0.15)' : 'rgba(255, 100, 100, 0.15)',
-                        color: opp.riskScore <= 3 ? '#00ff88' : 
-                               opp.riskScore <= 6 ? '#ffc800' : '#ff6464',
-                        borderRadius: '4px'
-                      }}>
-                        Risk: {opp.riskScore}/10
-                      </span>
-                    </div>
-
-                    {/* Title */}
-                    <h3 style={{
-                      margin: '0 0 1rem 0',
-                      fontSize: '1.05rem',
-                      fontWeight: 600,
-                      lineHeight: 1.4,
-                      color: '#fff',
-                      minHeight: '3rem'
-                    }}>
-                      {opp.title.length > 100 ? opp.title.substring(0, 100) + '...' : opp.title}
-                    </h3>
-
-                    {/* Metrics Grid */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr 1fr',
-                      gap: '1rem',
-                      marginBottom: '1rem'
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '0.7rem', color: '#999', marginBottom: '0.25rem' }}>
-                          Probability
-                        </div>
-                        <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#00ccff' }}>
-                          {(opp.probability * 100).toFixed(0)}%
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div style={{ fontSize: '0.7rem', color: '#999', marginBottom: '0.25rem' }}>
-                          Volume
-                        </div>
-                        <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#ffc800' }}>
-                          ${opp.volume >= 1000 ? (opp.volume / 1000).toFixed(1) + 'k' : opp.volume}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: '0.7rem', color: '#999', marginBottom: '0.25rem' }}>
-                          EV
-                        </div>
-                        <div style={{ fontSize: '1.3rem', fontWeight: 700, color: opp.expectedValue > 0 ? '#00ff88' : '#ff6464' }}>
-                          {(opp.expectedValue * 100).toFixed(1)}%
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Additional Info */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '0.5rem',
-                      marginBottom: '1rem',
-                      padding: '0.75rem',
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      borderRadius: '6px',
-                      fontSize: '0.85rem'
-                    }}>
-                      <div>
-                        <span style={{ color: '#999' }}>Price: </span>
-                        <span style={{ color: '#fff', fontWeight: 600 }}>{(opp.yesPrice * 100).toFixed(0)}¢</span>
-                      </div>
-                      <div>
-                        <span style={{ color: '#999' }}>Spread: </span>
-                        <span style={{ color: '#fff', fontWeight: 600 }}>{(opp.spread * 100).toFixed(1)}%</span>
-                      </div>
-                      <div>
-                        <span style={{ color: '#999' }}>Max Win: </span>
-                        <span style={{ color: '#00ff88', fontWeight: 600 }}>{(opp.maxWin * 100).toFixed(0)}¢</span>
-                      </div>
-                      <div>
-                        <span style={{ color: '#999' }}>Max Loss: </span>
-                        <span style={{ color: '#ff6464', fontWeight: 600 }}>{(opp.maxLoss * 100).toFixed(0)}¢</span>
-                      </div>
-                    </div>
-
-                    {/* Trade Button */}
-                    <a
-                      href={opp.marketUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
+                      {/* Number badge */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '16px',
+                        left: '16px',
+                        background: '#f0f0f0',
+                        color: '#666',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: '0.5rem',
-                        width: '100%',
-                        padding: '0.875rem',
-                        background: 'linear-gradient(135deg, #00ff88 0%, #00ccff 100%)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: '#000',
-                        textDecoration: 'none',
-                        fontWeight: 700,
-                        fontSize: '0.9rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Trade on Kalshi →
-                    </a>
-                  </div>
-                ))}
+                        fontSize: '12px',
+                        fontWeight: 700
+                      }}>
+                        {idx + 1}
+                      </div>
+
+                      {/* Header */}
+                      <div style={{ padding: '20px 20px 16px 20px' }}>
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', paddingLeft: '40px' }}>
+                          <span style={{
+                            padding: '4px 10px',
+                            background: '#81b29a20',
+                            color: '#81b29a',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            letterSpacing: '0.5px',
+                            textTransform: 'uppercase'
+                          }}>
+                            {opp.category}
+                          </span>
+                          
+                          <span style={{
+                            padding: '4px 10px',
+                            background: buyYes ? '#e7f5ec' : '#ffe7e7',
+                            color: buyYes ? '#2d7a4f' : '#c24040',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            letterSpacing: '0.5px'
+                          }}>
+                            {buyYes ? 'YES' : 'NO'}
+                          </span>
+
+                          <span style={{
+                            padding: '4px 10px',
+                            background: '#f0f0f0',
+                            color: '#666',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            fontWeight: 600
+                          }}>
+                            closes {opp.expiryDays <= 1 ? 'today' : opp.expiryDays <= 2 ? 'tomorrow' : `in ${opp.expiryDays}d`}
+                          </span>
+                        </div>
+
+                        <h3 style={{
+                          fontSize: '16px',
+                          fontWeight: 700,
+                          lineHeight: 1.4,
+                          marginBottom: '16px',
+                          color: '#2d3142',
+                          minHeight: '44px'
+                        }}>
+                          {opp.title.length > 100 ? opp.title.substring(0, 100) + '...' : opp.title}
+                        </h3>
+
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#666',
+                          marginBottom: '16px',
+                          lineHeight: 1.5
+                        }}>
+                          Buy <strong>{buyYes ? 'YES' : 'NO'}</strong> — profit if{' '}
+                          <strong>{(impliedProb * 100).toFixed(0)}%</strong> to{' '}
+                          <strong>{buyYes ? (impliedProb * 100 + 10).toFixed(0) : (impliedProb * 100 - 10).toFixed(0)}%</strong>
+                        </div>
+
+                        {/* Metrics */}
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(4, 1fr)',
+                          gap: '12px',
+                          background: '#f9f8f6',
+                          padding: '16px',
+                          borderRadius: '6px',
+                          marginBottom: '16px'
+                        }}>
+                          {[
+                            { label: 'ENTRY', value: `$${entryPrice.toFixed(2)}` },
+                            { label: 'IMPLIED', value: `${(impliedProb * 100).toFixed(0)}%` },
+                            { label: 'RETURN', value: `+${returnPct.toFixed(1)}%`, positive: true },
+                            { label: 'EXP. VALUE', value: `+${expValue.toFixed(0)}¢`, positive: true }
+                          ].map((m, i) => (
+                            <div key={i}>
+                              <div style={{ fontSize: '9px', color: '#888', marginBottom: '4px', fontWeight: 600, letterSpacing: '0.5px' }}>
+                                {m.label}
+                              </div>
+                              <div style={{
+                                fontSize: '16px',
+                                fontWeight: 700,
+                                color: m.positive ? '#2d7a4f' : '#2d3142'
+                              }}>
+                                {m.value}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(2, 1fr)',
+                          gap: '12px',
+                          fontSize: '11px',
+                          color: '#666',
+                          marginBottom: '16px'
+                        }}>
+                          <div>
+                            {(impliedProb * 100).toFixed(0)}% hist. win • +{returnPct.toFixed(1)}% return • +{expValue.toFixed(0)}¢ EV • closes {opp.expiryDays <= 1 ? 'tomorrow' : `${opp.expiryDays}d`} • tight spread
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ 
+                              background: '#f0f0f0', 
+                              padding: '2px 8px', 
+                              borderRadius: '3px',
+                              fontWeight: 600,
+                              fontSize: '10px'
+                            }}>
+                              {volume24h >= 1000 ? `${(volume24h / 1000).toFixed(0)}k` : volume24h}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div style={{
+                          height: '6px',
+                          background: '#f0f0f0',
+                          borderRadius: '3px',
+                          overflow: 'hidden',
+                          marginBottom: '16px'
+                        }}>
+                          <div style={{
+                            width: `${Math.min((expValue / 20) * 100, 100)}%`,
+                            height: '100%',
+                            background: 'linear-gradient(90deg, #81b29a 0%, #5a9179 100%)',
+                            transition: 'width 0.5s ease'
+                          }}></div>
+                        </div>
+
+                        {/* Copy button */}
+                        <button
+                          onClick={() => copyToClipboard(opp)}
+                          style={{
+                            width: '100%',
+                            padding: '10px',
+                            background: copiedId === opp.id ? '#e7f5ec' : '#f9f8f6',
+                            border: '1px solid #d4cfc0',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            fontFamily: 'IBM Plex Mono',
+                            color: copiedId === opp.id ? '#2d7a4f' : '#666',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            marginBottom: '12px',
+                            letterSpacing: '0.5px'
+                          }}
+                        >
+                          {copiedId === opp.id ? <CheckIcon /> : <CopyIcon />}
+                          {copiedId === opp.id ? 'COPIED TO CLIPBOARD' : 'COPY TO CLIPBOARD'}
+                        </button>
+
+                        {/* Trade link */}
+                        <a
+                          href={opp.marketUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'block',
+                            textAlign: 'center',
+                            padding: '12px',
+                            background: '#3d405b',
+                            color: '#fff',
+                            textDecoration: 'none',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            fontFamily: 'IBM Plex Mono',
+                            letterSpacing: '0.5px'
+                          }}
+                        >
+                          TRADE ON KALSHI →
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
-          </main>
+          </div>
         </div>
       );
     }
