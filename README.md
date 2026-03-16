@@ -1,35 +1,25 @@
-# Foretell v3 - Complete Deployment Package
+# Foretell - CORRECTED VERSION
 
-## Exact UI from Screenshot
-- Navy blue header with stats
-- Beige/cream background
-- Card-based layout
-- Category filters with counts
-- Copy to clipboard functionality
-- "Trade on Kalshi" buttons
+## Fixed Issues:
+1. ✅ **Proper data calculations** - Uses working kalshi-markets-v2.js with real EV, risk scores
+2. ✅ **Top 30 limit** - Changed from 100 to 30
+3. ✅ **Clean position titles** - Better formatting
+4. ✅ **Accurate metrics** - Real returns, expiry days, etc.
 
-## Files Included:
-```
-foretell-complete-v3/
-├── api/
-│   └── kalshi-markets.js   (Backend - returns all markets)
-├── index.html              (Complete UI)
-├── package.json
-├── vercel.json
-└── README.md
-```
+## What Changed:
+- Backend now uses proper `calculateExpectedValue()`, `calculateRiskScore()`, `calculateRiskRewardRatio()`
+- Filters: EV > 5%, avoid expensive favorites, max risk/reward 4:1
+- Limit set to top 30 (not 100)
+- UI matches screenshot exactly
 
-## Deploy to foretell4.vercel.app:
-
-1. Go to your foretell4 GitHub repo
-2. Delete ALL existing files
-3. Upload these 4 items:
-   - api/ folder
+## Deploy:
+1. Delete ALL files in foretell4 GitHub repo
+2. Upload:
+   - api/ folder (with kalshi-markets.js inside)
    - index.html
    - package.json
    - vercel.json
-4. Commit
-5. Wait 30 seconds
-6. Visit https://foretell4.vercel.app
+3. Commit
+4. Visit https://foretell4.vercel.app
 
-Done!
+Should now show REAL data with proper calculations!
