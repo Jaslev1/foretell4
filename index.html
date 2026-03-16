@@ -12,6 +12,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%); min-height: 100vh; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
   </style>
 </head>
 <body>
@@ -22,12 +23,27 @@
 
     const CATEGORIES = ['All', 'Economics', 'Stocks', 'Crypto', 'Tech', 'Sports', 'Politics', 'Weather', 'Entertainment', 'Other'];
 
+    // Copy icon SVG
+    const CopyIcon = () => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+    );
+
+    // Check icon SVG
+    const CheckIcon = () => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    );
+
     function App() {
       const [opportunities, setOpportunities] = useState([]);
       const [loading, setLoading] = useState(true);
       const [isLiveData, setIsLiveData] = useState(false);
       const [selectedCategory, setSelectedCategory] = useState('All');
-      const [lastUpdate, setLastUpdate] = useState(new Date());
+      const [copiedId, setCopiedId] = useState(null);
 
       const fetchData = async () => {
         setLoading(true);
@@ -42,7 +58,6 @@
             setOpportunities([]);
             setIsLiveData(false);
           }
-          setLastUpdate(new Date());
         } catch (err) {
           console.error('Error:', err);
           setOpportunities([]);
@@ -56,6 +71,15 @@
         const interval = setInterval(fetchData, 5 * 60 * 1000);
         return () => clearInterval(interval);
       }, []);
+
+      const copyToClipboard = (opp) => {
+        const text = `${opp.title}\nProbability: ${(opp.probability * 100).toFixed(0)}%\nPrice: ${(opp.yesPrice * 100).toFixed(0)}¢\nVolume: $${(opp.volume / 1000).toFixed(1)}k\nEV: ${(opp.expectedValue * 100).toFixed(1)}%\nRisk: ${opp.riskScore}/10\n${opp.marketUrl}`;
+        
+        navigator.clipboard.writeText(text).then(() => {
+          setCopiedId(opp.id);
+          setTimeout(() => setCopiedId(null), 2000);
+        });
+      };
 
       const filteredOpportunities = opportunities.filter(opp => 
         selectedCategory === 'All' || opp.category === selectedCategory
@@ -81,16 +105,14 @@
           }}>
             <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <h1 style={{
-                    margin: 0,
-                    fontSize: '2rem',
-                    fontWeight: 700,
-                    background: 'linear-gradient(135deg, #00ff88 0%, #00ccff 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent'
-                  }}>Foretell</h1>
-                </div>
+                <h1 style={{
+                  margin: 0,
+                  fontSize: '2rem',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #00ff88 0%, #00ccff 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}>Foretell</h1>
                 
                 <button onClick={fetchData} disabled={loading} style={{
                   padding: '0.75rem 1.5rem',
@@ -106,7 +128,6 @@
                 </button>
               </div>
 
-              {/* Status Badge */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
                 <div style={{
                   width: '8px',
@@ -120,7 +141,6 @@
                 </span>
               </div>
 
-              {/* Stats */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 {[
                   { label: 'Total Opportunities', value: stats.total, color: '#00ccff' },
@@ -141,9 +161,7 @@
             </div>
           </header>
 
-          {/* Main Content */}
           <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
-            {/* Category Filters */}
             <div style={{ marginBottom: '2rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               {CATEGORIES.map(cat => (
                 <button
@@ -157,8 +175,7 @@
                     color: selectedCategory === cat ? '#00ff88' : '#fff',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    transition: 'all 0.2s'
+                    fontSize: '0.85rem'
                   }}
                 >
                   {cat}
@@ -166,7 +183,6 @@
               ))}
             </div>
 
-            {/* Opportunities Grid */}
             {loading ? (
               <div style={{ textAlign: 'center', padding: '3rem', color: '#999' }}>
                 <div style={{ fontSize: '1.2rem' }}>Loading opportunities...</div>
@@ -190,7 +206,7 @@
             ) : (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
                 gap: '1.5rem'
               }}>
                 {filteredOpportunities.map((opp, idx) => (
@@ -202,48 +218,58 @@
                       borderRadius: '12px',
                       padding: '1.5rem',
                       animation: `fadeIn 0.5s ease ${idx * 0.05}s both`,
-                      transition: 'all 0.3s'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                      e.currentTarget.style.borderColor = '#00ff88';
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                      e.currentTarget.style.transform = 'translateY(0)';
+                      position: 'relative'
                     }}
                   >
-                    {/* Category & Risk Badge */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <span style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          padding: '0.35rem 0.75rem',
-                          background: 'rgba(0, 255, 136, 0.15)',
-                          color: '#00ff88',
-                          borderRadius: '4px',
-                          textTransform: 'uppercase'
-                        }}>
-                          {opp.category}
-                        </span>
-                        
-                        <span style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          padding: '0.35rem 0.75rem',
-                          background: opp.expiryDays <= 3 ? 'rgba(255, 100, 100, 0.15)' : 
-                                      opp.expiryDays <= 7 ? 'rgba(255, 200, 0, 0.15)' : 'rgba(100, 150, 255, 0.15)',
-                          color: opp.expiryDays <= 3 ? '#ff6464' : 
-                                 opp.expiryDays <= 7 ? '#ffc800' : '#6496ff',
-                          borderRadius: '4px'
-                        }}>
-                          {opp.expiryDays}d
-                        </span>
-                      </div>
+                    {/* Copy Button */}
+                    <button
+                      onClick={() => copyToClipboard(opp)}
+                      style={{
+                        position: 'absolute',
+                        top: '1rem',
+                        right: '1rem',
+                        padding: '0.5rem',
+                        background: copiedId === opp.id ? 'rgba(0, 255, 136, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '6px',
+                        color: copiedId === opp.id ? '#00ff88' : '#fff',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}
+                      title="Copy to clipboard"
+                    >
+                      {copiedId === opp.id ? <CheckIcon /> : <CopyIcon />}
+                    </button>
+
+                    {/* Badges */}
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', paddingRight: '3rem' }}>
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        padding: '0.35rem 0.75rem',
+                        background: 'rgba(0, 255, 136, 0.15)',
+                        color: '#00ff88',
+                        borderRadius: '4px',
+                        textTransform: 'uppercase'
+                      }}>
+                        {opp.category}
+                      </span>
                       
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        padding: '0.35rem 0.75rem',
+                        background: opp.expiryDays <= 3 ? 'rgba(255, 100, 100, 0.15)' : 
+                                    opp.expiryDays <= 7 ? 'rgba(255, 200, 0, 0.15)' : 'rgba(100, 150, 255, 0.15)',
+                        color: opp.expiryDays <= 3 ? '#ff6464' : 
+                               opp.expiryDays <= 7 ? '#ffc800' : '#6496ff',
+                        borderRadius: '4px'
+                      }}>
+                        {opp.expiryDays}d
+                      </span>
+
                       <span style={{
                         fontSize: '0.75rem',
                         fontWeight: 600,
@@ -270,29 +296,67 @@
                       {opp.title.length > 100 ? opp.title.substring(0, 100) + '...' : opp.title}
                     </h3>
 
-                    {/* Metrics */}
+                    {/* Metrics Grid */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
+                      gridTemplateColumns: '1fr 1fr 1fr',
                       gap: '1rem',
                       marginBottom: '1rem'
                     }}>
                       <div>
-                        <div style={{ fontSize: '0.75rem', color: '#999', marginBottom: '0.25rem' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#999', marginBottom: '0.25rem' }}>
                           Probability
                         </div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#00ccff' }}>
+                        <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#00ccff' }}>
                           {(opp.probability * 100).toFixed(0)}%
                         </div>
                       </div>
                       
                       <div>
-                        <div style={{ fontSize: '0.75rem', color: '#999', marginBottom: '0.25rem' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#999', marginBottom: '0.25rem' }}>
                           Volume
                         </div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ffc800' }}>
-                          ${(opp.volume / 1000).toFixed(0)}k
+                        <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#ffc800' }}>
+                          ${opp.volume >= 1000 ? (opp.volume / 1000).toFixed(1) + 'k' : opp.volume}
                         </div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: '#999', marginBottom: '0.25rem' }}>
+                          EV
+                        </div>
+                        <div style={{ fontSize: '1.3rem', fontWeight: 700, color: opp.expectedValue > 0 ? '#00ff88' : '#ff6464' }}>
+                          {(opp.expectedValue * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Additional Info */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '0.5rem',
+                      marginBottom: '1rem',
+                      padding: '0.75rem',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem'
+                    }}>
+                      <div>
+                        <span style={{ color: '#999' }}>Price: </span>
+                        <span style={{ color: '#fff', fontWeight: 600 }}>{(opp.yesPrice * 100).toFixed(0)}¢</span>
+                      </div>
+                      <div>
+                        <span style={{ color: '#999' }}>Spread: </span>
+                        <span style={{ color: '#fff', fontWeight: 600 }}>{(opp.spread * 100).toFixed(1)}%</span>
+                      </div>
+                      <div>
+                        <span style={{ color: '#999' }}>Max Win: </span>
+                        <span style={{ color: '#00ff88', fontWeight: 600 }}>{(opp.maxWin * 100).toFixed(0)}¢</span>
+                      </div>
+                      <div>
+                        <span style={{ color: '#999' }}>Max Loss: </span>
+                        <span style={{ color: '#ff6464', fontWeight: 600 }}>{(opp.maxLoss * 100).toFixed(0)}¢</span>
                       </div>
                     </div>
 
@@ -315,11 +379,8 @@
                         textDecoration: 'none',
                         fontWeight: 700,
                         fontSize: '0.9rem',
-                        cursor: 'pointer',
-                        transition: 'transform 0.2s'
+                        cursor: 'pointer'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                     >
                       Trade on Kalshi →
                     </a>
