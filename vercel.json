@@ -1,9 +1,1 @@
-{
-  "version": 2,
-  "rewrites": [
-    {
-      "source": "/api/kalshi-markets",
-      "destination": "/api/kalshi-markets.js"
-    }
-  ]
-}
+{"version":2,"rewrites":[{"source":"/api/kalshi-markets","destination":"/api/kalshi-markets.js"}]}
