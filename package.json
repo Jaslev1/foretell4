@@ -1,9 +1,5 @@
 {
   "name": "foretell",
-  "version": "5.0.0",
-  "description": "Kalshi scanner - WORKING",
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  }
+  "version": "6.0.0",
+  "description": "Kalshi scanner - bulletproof version"
 }
