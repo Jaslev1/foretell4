@@ -16,21 +16,12 @@ export default async function handler(req, res) {
     
     function cleanTitle(title) {
       if (!title) return 'Untitled Market';
-      
-      // Remove leading "yes " or "no "
       let clean = title.replace(/^(yes|no)\s+/i, '');
-      
-      // Split on common separators
       const parts = clean.split(/,yes |,no |;yes |;no /i);
-      
-      // Take first 3 parts max to keep readable
       const shortened = parts.slice(0, 3).join(' + ');
-      
-      // If still too long, truncate
       if (shortened.length > 100) {
         return shortened.substring(0, 97) + '...';
       }
-      
       return shortened;
     }
     
@@ -52,14 +43,22 @@ export default async function handler(req, res) {
       
       const probability = (yesBid + yesAsk) / 2;
       const payout = Math.max(0.01, 1 - yesAsk);
+      
+      // FIX #2: Correct return calculation
+      // Return = (1 / entry price) - 1
+      const returnPct = yesAsk > 0 ? ((1 / yesAsk) - 1) : 0;
+      
       const expectedValue = (probability * payout) - ((1 - probability) * yesAsk) - (yesAsk * 0.07);
       
       return {
         id: m.ticker || `market-${i}`,
         title: cleanTitle(m.title),
+        // FIX #1: Use full Kalshi market URL with ticker
+        searchableText: `${cleanTitle(m.title)} - Ticker: ${m.ticker}`,
         category: categorize(m.ticker, m.title),
         probability,
         yesPrice: yesAsk,
+        returnPct, // Now shows actual return percentage
         volume: m.volume || 0,
         spread: Math.abs(yesAsk - yesBid),
         expiryDays,

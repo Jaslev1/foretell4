@@ -23,6 +23,7 @@ function App(){
 const [opps,setOpps]=useState([]);
 const [loading,setLoading]=useState(true);
 const [cat,setCat]=useState('ALL');
+const [daysFilter,setDaysFilter]=useState('ALL'); // FIX #3: Days filter
 const [copied,setCopied]=useState(null);
 
 useEffect(()=>{
@@ -32,9 +33,16 @@ fetch('/api/kalshi-markets')
 .catch(e=>{console.error(e);setLoading(false);});
 },[]);
 
-const filtered=cat==='ALL'?opps:opps.filter(o=>o.category===cat);
+// Apply both category and days filters
+let filtered=opps;
+if(cat!=='ALL')filtered=filtered.filter(o=>o.category===cat);
+if(daysFilter==='<7')filtered=filtered.filter(o=>o.expiryDays<7);
+else if(daysFilter==='7-30')filtered=filtered.filter(o=>o.expiryDays>=7&&o.expiryDays<=30);
+else if(daysFilter==='>30')filtered=filtered.filter(o=>o.expiryDays>30);
+
+// FIX #2: Calculate average return using actual returnPct
 const avgWin=filtered.length?filtered.reduce((s,o)=>s+o.probability,0)/filtered.length:0;
-const avgRet=filtered.length?filtered.reduce((s,o)=>s+((1/o.yesPrice)-1),0)/filtered.length:0;
+const avgRet=filtered.length?filtered.reduce((s,o)=>s+(o.returnPct||0),0)/filtered.length:0;
 const time=new Date();
 
 return React.createElement('div',{style:{minHeight:'100vh'}},
@@ -61,7 +69,7 @@ React.createElement('div',null,React.createElement('div',{style:{fontSize:'28px'
 React.createElement('div',null,React.createElement('div',{style:{fontSize:'28px',fontWeight:700}},time.getHours()+':'+String(time.getMinutes()).padStart(2,'0')),React.createElement('div',{style:{fontSize:'9px',color:'#888',textTransform:'uppercase'}},'Last Updated'))
 )
 ),
-React.createElement('div',{style:{background:'#fff',borderBottom:'1px solid #ddd',padding:'0 40px',display:'flex',gap:'24px'}},
+React.createElement('div',{style:{background:'#fff',borderBottom:'1px solid #ddd',padding:'0 40px',display:'flex',gap:'24px',alignItems:'center'}},
 ['ALL','WEATHER','ECONOMICS','COMMODITIES','GENERAL','SPORTS','ENTERTAINMENT'].map(c=>{
 const count=c==='ALL'?opps.length:opps.filter(o=>o.category===c).length;
 return React.createElement('button',{key:c,onClick:()=>setCat(c),style:{
@@ -69,18 +77,31 @@ padding:'16px 0',background:'none',border:'none',borderBottom:cat===c?'2px solid
 color:cat===c?'#000':'#999',fontSize:'10px',fontWeight:500,cursor:'pointer'}},
 c+' '+count
 );
-})
+}),
+React.createElement('div',{style:{flex:1}}),
+// FIX #3: Days filter dropdown
+React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'8px',padding:'16px 0'}},
+React.createElement('span',{style:{fontSize:'10px',color:'#999',fontWeight:500}},'DAYS:'),
+React.createElement('select',{value:daysFilter,onChange:(e)=>setDaysFilter(e.target.value),style:{
+padding:'6px 12px',border:'1px solid #ddd',borderRadius:'3px',fontSize:'10px',fontWeight:500,background:'#fff',cursor:'pointer',color:'#666'
+}},
+React.createElement('option',{value:'ALL'},'All'),
+React.createElement('option',{value:'<7'},'< 7 days'),
+React.createElement('option',{value:'7-30'},'7-30 days'),
+React.createElement('option',{value:'>30'},'> 30 days')
+)
+)
 ),
 React.createElement('div',{style:{padding:'40px',maxWidth:'1400px',margin:'0 auto'}},
 loading?React.createElement('div',{style:{textAlign:'center',padding:'80px',color:'#999'}},'Loading...'):
 filtered.length===0?React.createElement('div',{style:{textAlign:'center',padding:'80px'}},
 React.createElement('h2',{style:{fontSize:'24px',marginBottom:'8px'}},'No opportunities found'),
-React.createElement('p',{style:{fontSize:'12px',color:'#999'}},'No markets in scoring range right now. Check back soon.')
+React.createElement('p',{style:{fontSize:'12px',color:'#999'}},'No markets match your filters. Try adjusting category or days.')
 ):
 React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(350px,1fr))',gap:'20px'}},
 filtered.map((o,i)=>{
 const buyYes=o.probability>0.5;
-const ret=((1/o.yesPrice)-1)*100;
+const ret=(o.returnPct||0)*100; // Use actual return
 const ev=o.expectedValue*100;
 return React.createElement('div',{key:o.id,style:{background:'#fff',border:'1px solid #ddd',borderRadius:'6px',padding:'20px',position:'relative'}},
 React.createElement('div',{style:{position:'absolute',top:'16px',left:'16px',fontSize:'11px',color:'#ccc',fontWeight:600}},i+1),
@@ -113,8 +134,13 @@ React.createElement('div',{style:{height:'4px',background:'#f0f0f0',borderRadius
 React.createElement('div',{style:{width:Math.min((ev/15)*100,100)+'%',height:'100%',background:'linear-gradient(90deg,#81b29a 0%,#5a9179 100%)'}})
 ),
 React.createElement('div',{style:{display:'flex',gap:'8px'}},
-React.createElement('button',{onClick:()=>{navigator.clipboard.writeText(o.title+'\n'+o.marketUrl);setCopied(o.id);setTimeout(()=>setCopied(null),2000);},
-style:{padding:'8px',background:copied===o.id?'#edf4f0':'#fafaf8',border:'1px solid #ddd',borderRadius:'4px',fontSize:'10px',fontWeight:500,cursor:'pointer',color:copied===o.id?'#5a9179':'#888',flex:'0 0 auto'}},
+// FIX #1: Copy searchable text with ticker
+React.createElement('button',{onClick:()=>{
+const copyText=o.searchableText||o.title;
+navigator.clipboard.writeText(copyText);
+setCopied(o.id);
+setTimeout(()=>setCopied(null),2000);
+},style:{padding:'8px',background:copied===o.id?'#edf4f0':'#fafaf8',border:'1px solid #ddd',borderRadius:'4px',fontSize:'10px',fontWeight:500,cursor:'pointer',color:copied===o.id?'#5a9179':'#888',flex:'0 0 auto'}},
 '📋 COPY'
 ),
 React.createElement('a',{href:o.marketUrl,target:'_blank',rel:'noopener noreferrer',style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'8px',background:'#3d405b',color:'#fff',textDecoration:'none',borderRadius:'4px',fontSize:'10px',fontWeight:600}},
