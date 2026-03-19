@@ -23,7 +23,7 @@ function App(){
 const [opps,setOpps]=useState([]);
 const [loading,setLoading]=useState(true);
 const [cat,setCat]=useState('ALL');
-const [daysFilter,setDaysFilter]=useState('ALL'); // FIX #3: Days filter
+const [daysFilter,setDaysFilter]=useState('ALL');
 const [copied,setCopied]=useState(null);
 
 useEffect(()=>{
@@ -33,14 +33,13 @@ fetch('/api/kalshi-markets')
 .catch(e=>{console.error(e);setLoading(false);});
 },[]);
 
-// Apply both category and days filters
 let filtered=opps;
 if(cat!=='ALL')filtered=filtered.filter(o=>o.category===cat);
 if(daysFilter==='<7')filtered=filtered.filter(o=>o.expiryDays<7);
-else if(daysFilter==='7-30')filtered=filtered.filter(o=>o.expiryDays>=7&&o.expiryDays<=30);
+else if(daysFilter==='7-14')filtered=filtered.filter(o=>o.expiryDays>=7&&o.expiryDays<=14);
+else if(daysFilter==='15-30')filtered=filtered.filter(o=>o.expiryDays>=15&&o.expiryDays<=30);
 else if(daysFilter==='>30')filtered=filtered.filter(o=>o.expiryDays>30);
 
-// FIX #2: Calculate average return using actual returnPct
 const avgWin=filtered.length?filtered.reduce((s,o)=>s+o.probability,0)/filtered.length:0;
 const avgRet=filtered.length?filtered.reduce((s,o)=>s+(o.returnPct||0),0)/filtered.length:0;
 const time=new Date();
@@ -51,7 +50,7 @@ React.createElement('div',{style:{display:'flex',gap:'12px',alignItems:'center'}
 React.createElement('div',{style:{width:'28px',height:'28px',background:'#3d405b',borderRadius:'3px'}}),
 React.createElement('span',{style:{fontWeight:700,fontSize:'16px'}},'Foretell')
 ),
-React.createElement('div',{style:{fontSize:'10px',color:'#999'}},'KALSHI SCANNER • v8.0 FIXED')
+React.createElement('div',{style:{fontSize:'10px',color:'#999'}},'KALSHI SCANNER')
 ),
 React.createElement('div',{style:{background:'linear-gradient(135deg,#454959 0%,#3d405b 100%)',padding:'60px 40px',color:'#fff'}},
 React.createElement('h1',{style:{fontSize:'50px',fontWeight:800,marginBottom:'16px'}},
@@ -79,7 +78,6 @@ c+' '+count
 );
 }),
 React.createElement('div',{style:{flex:1}}),
-// FIX #3: Days filter dropdown
 React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'8px',padding:'16px 0'}},
 React.createElement('span',{style:{fontSize:'10px',color:'#999',fontWeight:500}},'DAYS:'),
 React.createElement('select',{value:daysFilter,onChange:(e)=>setDaysFilter(e.target.value),style:{
@@ -87,7 +85,8 @@ padding:'6px 12px',border:'1px solid #ddd',borderRadius:'3px',fontSize:'10px',fo
 }},
 React.createElement('option',{value:'ALL'},'All'),
 React.createElement('option',{value:'<7'},'< 7 days'),
-React.createElement('option',{value:'7-30'},'7-30 days'),
+React.createElement('option',{value:'7-14'},'7-14 days'),
+React.createElement('option',{value:'15-30'},'15-30 days'),
 React.createElement('option',{value:'>30'},'> 30 days')
 )
 )
@@ -96,12 +95,12 @@ React.createElement('div',{style:{padding:'40px',maxWidth:'1400px',margin:'0 aut
 loading?React.createElement('div',{style:{textAlign:'center',padding:'80px',color:'#999'}},'Loading...'):
 filtered.length===0?React.createElement('div',{style:{textAlign:'center',padding:'80px'}},
 React.createElement('h2',{style:{fontSize:'24px',marginBottom:'8px'}},'No opportunities found'),
-React.createElement('p',{style:{fontSize:'12px',color:'#999'}},'No markets match your filters. Try adjusting category or days.')
+React.createElement('p',{style:{fontSize:'12px',color:'#999'}},'No markets match your filters. Try selecting a different time range.')
 ):
 React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(350px,1fr))',gap:'20px'}},
 filtered.map((o,i)=>{
 const buyYes=o.probability>0.5;
-const ret=(o.returnPct||0)*100; // Use actual return
+const ret=(o.returnPct||0)*100;
 const ev=o.expectedValue*100;
 return React.createElement('div',{key:o.id,style:{background:'#fff',border:'1px solid #ddd',borderRadius:'6px',padding:'20px',position:'relative'}},
 React.createElement('div',{style:{position:'absolute',top:'16px',left:'16px',fontSize:'11px',color:'#ccc',fontWeight:600}},i+1),
@@ -134,14 +133,12 @@ React.createElement('div',{style:{height:'4px',background:'#f0f0f0',borderRadius
 React.createElement('div',{style:{width:Math.min((ev/15)*100,100)+'%',height:'100%',background:'linear-gradient(90deg,#81b29a 0%,#5a9179 100%)'}})
 ),
 React.createElement('div',{style:{display:'flex',gap:'8px'}},
-// FIX #1: Copy searchable text with ticker
 React.createElement('button',{onClick:()=>{
-const copyText=o.searchableText||o.title;
-navigator.clipboard.writeText(copyText);
+navigator.clipboard.writeText(o.copyText||o.marketUrl);
 setCopied(o.id);
 setTimeout(()=>setCopied(null),2000);
 },style:{padding:'8px',background:copied===o.id?'#edf4f0':'#fafaf8',border:'1px solid #ddd',borderRadius:'4px',fontSize:'10px',fontWeight:500,cursor:'pointer',color:copied===o.id?'#5a9179':'#888',flex:'0 0 auto'}},
-'📋 COPY'
+'📋 COPY URL'
 ),
 React.createElement('a',{href:o.marketUrl,target:'_blank',rel:'noopener noreferrer',style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'8px',background:'#3d405b',color:'#fff',textDecoration:'none',borderRadius:'4px',fontSize:'10px',fontWeight:600}},
 'TRADE ON KALSHI →'
@@ -155,8 +152,8 @@ React.createElement('div',{style:{background:'#3d405b',color:'#b5b8c8',padding:'
 React.createElement('div',null,React.createElement('span',{style:{fontWeight:600,color:'#fff'}},'Foretell')),
 React.createElement('div',{style:{marginTop:'12px'}},'Data sourced from the ',React.createElement('span',{style:{fontWeight:500}},'Kalshi'),' public API. Not financial advice.'),
 React.createElement('div',{style:{color:'#70738a',fontSize:'10px',marginTop:'8px'}},
-React.createElement('strong',null,'YES pill'),' = buy YES on Kalshi • ',React.createElement('strong',null,'NO pill'),' = buy NO on Kalshi',React.createElement('br'),
-React.createElement('strong',null,'Risk 1–10'),' = 1 very safe, 10 very risky'
+'Click ',React.createElement('strong',null,'COPY URL'),' to copy the direct market link, then paste into your browser.',React.createElement('br'),
+React.createElement('strong',null,'YES pill'),' = buy YES • ',React.createElement('strong',null,'NO pill'),' = buy NO'
 )
 )
 );

@@ -1,17 +1,20 @@
-# Foretell - ALL 3 FIXES
+# Foretell v9 - ACTUAL FIXES
 
-## Fixed Issues:
-1. ✅ Clipboard now copies: "Title - Ticker: KXABC123" format (searchable in Kalshi)
-2. ✅ Average return calculation fixed (was showing 100%, now shows real %)
-3. ✅ Added "DAYS" filter dropdown (All / <7 / 7-30 / >30 days)
+## What Changed:
+1. **COPY button now copies the URL directly** - paste into browser, goes straight to market
+2. **Days filter adjusted to match Kalshi reality:**
+   - < 7 days (probably 0 results - Kalshi has few short-term markets)
+   - 7-14 days
+   - 15-30 days (where most markets are)
+   - > 30 days
 
-## Deploy:
-1. Delete all files in foretell4 repo
-2. Upload: api/, index.html, package.json, vercel.json, README.md
-3. Commit
-4. Refresh
+## Why < 7 days shows nothing:
+Kalshi currently has mostly sports parlays closing in 15-26 days. There ARE no markets closing in the next week right now. Try 15-30 days instead.
 
-Now you can:
-- Filter by days to expiry
-- Copy proper search text with ticker
-- See accurate return percentages
+## Deploy & Test:
+1. Upload all files
+2. Commit
+3. Hard refresh (Cmd+Shift+R)
+4. Select "15-30 days" to see markets
+5. Click COPY URL on any card
+6. Paste in browser - should go directly to market

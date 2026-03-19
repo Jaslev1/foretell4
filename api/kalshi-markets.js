@@ -43,22 +43,18 @@ export default async function handler(req, res) {
       
       const probability = (yesBid + yesAsk) / 2;
       const payout = Math.max(0.01, 1 - yesAsk);
-      
-      // FIX #2: Correct return calculation
-      // Return = (1 / entry price) - 1
       const returnPct = yesAsk > 0 ? ((1 / yesAsk) - 1) : 0;
-      
       const expectedValue = (probability * payout) - ((1 - probability) * yesAsk) - (yesAsk * 0.07);
       
       return {
         id: m.ticker || `market-${i}`,
         title: cleanTitle(m.title),
-        // FIX #1: Use full Kalshi market URL with ticker
-        searchableText: `${cleanTitle(m.title)} - Ticker: ${m.ticker}`,
+        // FIX: Copy the URL directly - most reliable way to find the market
+        copyText: m.market_url || `https://kalshi.com/markets/${m.ticker}`,
         category: categorize(m.ticker, m.title),
         probability,
         yesPrice: yesAsk,
-        returnPct, // Now shows actual return percentage
+        returnPct,
         volume: m.volume || 0,
         spread: Math.abs(yesAsk - yesBid),
         expiryDays,
